@@ -1,0 +1,4 @@
+*.pyc
+*.hdf5
+*.pth
+data/tractoinferno/sub-1030/sub-1030.hdf5
