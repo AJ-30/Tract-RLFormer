@@ -1,4 +1,4 @@
 # Tract-RLFormer
 
-A GPT and RL Paradigm for tracking white matter fiber
+A GPT and RL Paradigm for reconstruction of white matter fiber tracts.
 
