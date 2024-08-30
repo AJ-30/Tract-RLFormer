@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn #ASHUTOSH
 
-from decision_transformer.training.trainer import Trainer
+from tractRLformer.training.trainer import Trainer
 
 #ASHUTOSH----
 def normalize_vectors(v):

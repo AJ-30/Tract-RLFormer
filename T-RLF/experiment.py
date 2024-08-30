@@ -7,6 +7,7 @@ import argparse
 import pickle
 import random
 import sys
+import yaml  # To load the YAML configuration
 
 from tractRLformer.evaluation.evaluate_episodes import evaluate_episode, evaluate_episode_rtg
 from tractRLformer.models.decision_transformer import DecisionTransformer
@@ -26,6 +27,11 @@ def discount_cumsum(x, gamma):
     for t in reversed(range(x.shape[0]-1)):
         discount_cumsum[t] = x[t] + gamma * discount_cumsum[t+1]
     return discount_cumsum
+
+def load_env_config(env_config_path):
+    with open(env_config_path, 'r') as f:
+        env_config = yaml.safe_load(f)
+    return env_config
 
 
 def experiment(
@@ -56,49 +62,43 @@ def experiment(
         env_targets = [5000, 2500]
         scale = 1000.
     elif env_name == 'reacher2d':
-        from decision_transformer.envs.reacher_2d import Reacher2dEnv
+        from tractRLformer.envs.reacher_2d import Reacher2dEnv
         env = Reacher2dEnv()
         max_ep_len = 100
         env_targets = [76, 40]
         scale = 10.
-    #addition by ashutosh------------------------------------------------------------
+    #environment dict for Tractography
     elif env_name == 'ttl2':
-        # sys.path.append('/home/turing/TrackToLearn-2/CustomTracking_AS')
+        # Load env config if provided
+        env_config_path = None
+        if variant['env_config']:
+            env_config_path = variant['env_config']
+        
+        if env_config_path:
+            env_config = load_env_config(env_config_path)
+        else:
+            env_config = {}
         from rl_environments.BaseEnvmod_TRLF import TrackingEnvironment
         import nibabel as nib
-        env_dto = {
-            'interface_seeding': False,
-            'fa_map': None,
-            'n_signal': 1,
-            'n_dirs': 4,
-            'step_size': 0.75,
-            'theta': 60,
-            'min_length': 0.0,
-            'max_length': 200.0,
-            'cmc': False,
-            'asymmetric': False,
-            'prob': 0.0,
-            'npv': 7,
-            'rng': np.random.RandomState(seed=1111),
-            'scoring_data': None,#'/neuro/Tractography_ankita/ankita_ismrm2015/scoring_data',
-            'reference': '/neuro/Tractography_ankita/ankita_ismrm2015/raw_data/fa.nii.gz',##'/datasets/TractoInferno-ds003900/derivatives/trainset/sub-1005/dti/sub-1005__fa.nii.gz',#'/scratch/ashutoshs.cse.iitmandi/work/datasets/TractoInferno-ds003900/derivatives/trainset/sub-1005/dti/sub-1005__fa.nii.gz',#'/neuro/Tractography_ankita/ankita_ismrm2015/raw_data/fa.nii.gz',
-            'alignment_weighting': 1,
-            'straightness_weighting': 0,
-            'length_weighting': 0,
-            'target_bonus_factor': 0,
-            'exclude_penalty_factor': 0,
-            'angle_penalty_factor': 0,
-            'add_neighborhood': 0.75,
-            'compute_reward': True,
-            'device': 'cuda'
-        }
-        """
-        inputs
-        """
         from dipy.data import get_sphere
         from scilpy.reconst.utils import get_sh_order_and_fullness
         from dipy.reconst.csdeconv import sph_harm_ind_list
         from scilpy.reconst.multi_processes import convert_sh_basis
+
+        # Load from env_config
+        env_dto = env_config.get('env_dto')
+        env_dto['rng'] = np.random.RandomState(seed=env_dto['rng'])
+
+        signal_path = env_config.get('signal')
+        target_order = env_config.get('target_order')
+        seeding_mask_path = env_config.get('seeding_mask')
+        tracking_mask_path = env_config.get('tracking_mask')
+        wm_path = env_config.get('wm')
+        peaks_path = env_config.get('peaks')
+
+        """
+        inputs
+        """
         #---------
         def set_sh_order_basis(
             sh,
@@ -155,8 +155,8 @@ def experiment(
             return sh
         #files:
         #input volume:
-        signal = '/neuro/Tractography_ankita/ankita_ismrm2015/raw_data/fodf.nii.gz'##'/datasets/TractoInferno-ds003900/derivatives/trainset/sub-1005/fodf/sub-1005__fodf.nii.gz'#'/scratch/ashutoshs.cse.iitmandi/work/datasets/TractoInferno-ds003900/derivatives/trainset/sub-1005/fodf/sub-1005__fodf.nii.gz'
-        signal = nib.load(signal)
+        # signal = '/neuro/Tractography_ankita/ankita_ismrm2015/raw_data/fodf.nii.gz'##'/datasets/TractoInferno-ds003900/derivatives/trainset/sub-1005/fodf/sub-1005__fodf.nii.gz'#'/scratch/ashutoshs.cse.iitmandi/work/datasets/TractoInferno-ds003900/derivatives/trainset/sub-1005/fodf/sub-1005__fodf.nii.gz'
+        signal = nib.load(signal_path)
         if not np.allclose(np.mean(signal.header.get_zooms()[:3]),signal.header.get_zooms()[0], atol=1e-03):
             print('WARNING: ODF SH file is not isotropic. Tracking cannot be '
                         'ran robustly. You are entering undefined behavior '
@@ -164,14 +164,13 @@ def experiment(
             
         data = set_sh_order_basis(signal.get_fdata(dtype=np.float32),
                                         'descoteaux07',
-                                        target_order=8,#8,
+                                        target_order=target_order,#8,
                                         target_basis='descoteaux07')
 
-        seeding_mask = nib.load('/datasets/ismrm_resampled_masks/Cingulum_right_resampled.nii.gz')##'/datasets/TractoInferno-ds003900/pop_avg-aligned-masks/FPT_R/sub-1005_aligned.nii.gz')
+        seeding_mask = nib.load(seeding_mask_path)
+        tracking_mask = nib.load(tracking_mask_path)
+        wm = nib.load(wm_path)
 
-        tracking_mask = nib.load('/datasets/ismrm_resampled_masks/Cingulum_right_resampled.nii.gz')##'/datasets/TractoInferno-ds003900/pop_avg-aligned-masks/FPT_R/sub-1005_aligned.nii.gz')
-
-        wm = nib.load('/datasets/ismrm_resampled_masks/Cingulum_right_resampled.nii.gz')##'/datasets/TractoInferno-ds003900/pop_avg-aligned-masks/FPT_R/sub-1005_aligned.nii.gz')
         wm_data = wm.get_fdata()
 
         if len(wm_data.shape) == 3:
@@ -180,7 +179,7 @@ def experiment(
         signal_data = np.concatenate([data, wm_data], axis=-1)
         signal_data = nib.Nifti1Image(signal_data, affine=signal.affine)
 
-        peaks = nib.load('/neuro/Tractography_ankita/ankita_ismrm2015/raw_data/peaks.nii.gz')##"/datasets/TractoInferno-ds003900/derivatives/trainset/sub-1005/fodf/sub-1005__peaks.nii.gz")
+        peaks = nib.load(peaks_path)
         #----------
         env = TrackingEnvironment(
                         input_volume=signal_data,
@@ -200,7 +199,7 @@ def experiment(
 
     if model_type == 'bc':
         env_targets = env_targets[:1]  # since BC ignores target, no need for different evaluations
-    #CHANGED BY ASHUTOSH ----------------------------env.state_shape[0]-----------------------
+    #----------------------------env.state_shape[0]-----------------------
     if env_name == 'ttl2':
         state_dim = env.get_state_size()
         # print(state_dim)
@@ -213,10 +212,10 @@ def experiment(
 
     # load dataset
     dataset_path = f'data/{env_name}-{dataset}-v2.pkl'
-    #ADDED BY ASHUTOSH------------------------------------------------------------------------
+    #------------------------------------------------------------------------
     if(env_name == 'ttl2'):
         dataset_path = dataset
-    #--------------------------------------------------------------------------------------------
+
     with open(dataset_path, 'rb') as f:
         trajectories = pickle.load(f)
 
@@ -334,8 +333,6 @@ def experiment(
             # s_tensor = (s_tensor - state_mean_tensor * scale_mean) / (state_std_tensor * scale_std)
 
             # s[-1] = s_tensor#s_tensor.detach().cpu().numpy()
-
-            # print(f'ye raheeee is batch ke... {scale_mean, scale_std}\n\n')
             #----------------------------------------scale-mean-std
             a[-1] = np.concatenate([np.ones((1, max_len - tlen, act_dim)) * -10., a[-1]], axis=1)
             r[-1] = np.concatenate([np.zeros((1, max_len - tlen, 1)), r[-1]], axis=1)
@@ -351,10 +348,6 @@ def experiment(
         rtg = torch.from_numpy(np.concatenate(rtg, axis=0)).to(dtype=torch.float32, device=device)
         timesteps = torch.from_numpy(np.concatenate(timesteps, axis=0)).to(dtype=torch.long, device=device)
         mask = torch.from_numpy(np.concatenate(mask, axis=0)).to(device=device)
-
-        # print(s[...,0], 'STATE haiii, \n\n', s.shape, '\n\n')
-        # print(f'timesteps hai.. {timesteps}\n\n')
-        # print(f'rtg hai.. {rtg.shape}\n\n')
 
         return s, a, r, d, rtg, timesteps, mask
 
@@ -425,7 +418,7 @@ def experiment(
         )
     else:
         raise NotImplementedError
-    #ASHUTOSH------------------------------------------------------------------------------
+    #------------------------------------------------------------------------------
     load_model = variant.get('load_model', False)
     model_path = variant.get('model_path', 'dt_Fornix_512.pt')
     if load_model:
@@ -468,13 +461,7 @@ def experiment(
     model = model.to(device=device)
 
     warmup_steps = variant['warmup_steps']
-    #----------------------------------------scale-mean-std
-    # optimizer = torch.optim.AdamW(
-    #     model.parameters(),
-    #     lr=variant['learning_rate'],
-    #     weight_decay=variant['weight_decay'],
-    # ) #ORIGINAL DT OPTIMIZER
-    # Add scale parameters to the list of parameters to optimize
+
     if is_from_pretrained:
         parameters_to_optimize = list(model.transformer.h[-1].parameters())
         print("\nOnly last decoder block is set as trainable...\n")
@@ -498,7 +485,6 @@ def experiment(
             batch_size=batch_size,
             get_batch=get_batch,
             scheduler=scheduler,
-            # loss_fn=lambda s_hat, a_hat, r_hat, s, a, r: torch.mean((a_hat - a)**2),#------------------mod by AJ
             loss_fn = lambda s_hat, a_hat, r_hat, s, a, r: 180/np.pi*(torch.acos(torch.clamp(torch.dot(a.view(-1)/torch.norm(a), a_hat.view(-1)/torch.norm(a_hat)), -1.0, 1.0))),
             eval_fns=[eval_episodes(tar) for tar in env_targets],
         )
@@ -509,7 +495,6 @@ def experiment(
             batch_size=batch_size,
             get_batch=get_batch,
             scheduler=scheduler,
-            # loss_fn=lambda s_hat, a_hat, r_hat, s, a, r: torch.mean((a_hat - a)**2),#------------------- mod by AJ
             loss_fn = lambda s_hat, a_hat, r_hat, s, a, r: 180/np.pi*(torch.acos(torch.clamp(torch.dot(a/torch.norm(a), a_hat/torch.norm(a_hat)), -1.0, 1.0))),
             eval_fns=[eval_episodes(tar) for tar in env_targets],
         )
@@ -525,8 +510,6 @@ def experiment(
 
     # with torch.autograd.set_detect_anomaly(True):
         
-    # if np.max(returns) > 1000:
-    #     variant['max_iters'] = 20
     mean_losses_train = []
     consecutive_non_decreasing = 0
     patience = 3
@@ -549,7 +532,7 @@ def experiment(
         if iter >=10 and iter%10==0:#save model after iteration, to compare results, overfitting, optimal loss/iterations
             save_path = variant.get('save_path', 'base_model_fpt-r_1102_full.pt')
             torch.save(model, f'{save_path[:-3]}_{iter}.pt')
-            save_sc_param = variant.get('save_sc_params_path','/home/turing/TrackToLearn-2/decision-transformer/gym/dt_hyperparams_search/results/sc_params/scale_parameters.pth')
+            save_sc_param = variant.get('save_sc_params_path','sc_params/scale_parameters.pth')
             torch.save({'scale_mean': scale_mean, 'scale_std': scale_std}, f'{save_sc_param[:-4]}_{iter}.pth')
 
     # Save trained model
@@ -593,9 +576,11 @@ if __name__ == '__main__':
     parser.add_argument('--save_sc_params_path', type=str, default='sc_params/scale_parameters.pth')
     parser.add_argument('--load_usigma', type=int, default=0)
     parser.add_argument('--usigma_data', type=str, default='sc_params/scale_parameters.pth')
-    #for finetuning--------------
+    #for finetuning--------------AS
     parser.add_argument('--from_pretrained', type=bool, default=False)
     parser.add_argument('--pretrained_path', type=str, default='trlf_Fornix_512.pt')
+
+    parser.add_argument('--env_config', type=str, required=True) #help='Path to the YAML configuration file'
 
     
     args = parser.parse_args()
