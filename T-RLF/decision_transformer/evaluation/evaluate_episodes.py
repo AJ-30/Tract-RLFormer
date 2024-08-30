@@ -1,25 +1,13 @@
 import numpy as np
 import torch
 
-#ASHUTOSH -------------TO LOAD STATE FROM TRAJECTORY
 import pickle
-# pickleFile = open('ttl_traj_list_1_4921.pkl','rb')
-# fl = pickle.load(pickleFile)
-# init_state = fl[7]['observations'][0]
-# #IF 5 STATES FOR START------------------AS
-# init_states = fl[7]['observations'][:5]
-# init_next_states = fl[7]['next_observations'][:5]
-# init_actions = fl[7]['actions'][:5]
-# init_rewards = fl[7]['rewards'][:5]
-# print(type(init_states))
-# print(init_states.shape)
-#IF 5 STATES FOR START------------------
-#-------------TO LOAD STATE FROM TRAJECTORY
+
 
 try:
     import sys
-    sys.path.append('/home/turing/TrackToLearn-2/CustomTracking_AS')
-    from BaseEnvmod_DT import TrackingEnvironment
+
+    from rl_environments.BaseEnvmod_TRLF import TrackingEnvironment
 except ImportError:
     # Handle the error or simply pass
     pass
@@ -108,17 +96,11 @@ def evaluate_episode_rtg(
 
     #-------------------------------------------------------------------------------------
     if isinstance(env, TrackingEnvironment):
-        # seeds = env.seeds
-        # print('seeddddds',seeds.shape) # (110106, 3)
+
         rng = 1998#np.random.randint(1,1998)
         state = env.reset(rng,rng+4)
         state = state.detach().cpu().numpy()
-        #IF FROM TRAJECTORY---------
-        # state = init_state #CAN'T DO LIKE THIS
-        #IF FROM TRAJECTORY---------
-        # print(state)
-        # print('SHAPE OF STATE: ',state.shape)
-    else:#-----------------------------------------------------------------------------------------------
+
         state = env.reset()
     # state = env.reset()
     if mode == 'noise':
@@ -167,7 +149,7 @@ def evaluate_episode_rtg(
             reward = reward[0]#
         
 
-        # print('evalllll-----',state.shape)
+        
         cur_state = torch.from_numpy(state).to(device=device).reshape(states.shape[0], 1, state_dim)
         states = torch.cat([states, cur_state], dim=1)
         rewards[-1] = reward

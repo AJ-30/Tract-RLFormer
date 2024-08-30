@@ -9,11 +9,11 @@ import random
 import sys
 import yaml  # To load the YAML configuration
 
-from tractRLformer.evaluation.evaluate_episodes import evaluate_episode, evaluate_episode_rtg
-from tractRLformer.models.decision_transformer import DecisionTransformer
-from tractRLformer.models.mlp_bc import MLPBCModel
-from tractRLformer.training.act_trainer import ActTrainer
-from tractRLformer.training.seq_trainer import SequenceTrainer
+from decision_transformer.evaluation.evaluate_episodes import evaluate_episode, evaluate_episode_rtg
+from decision_transformer.models.decision_transformer import DecisionTransformer
+from decision_transformer.models.mlp_bc import MLPBCModel
+from decision_transformer.training.act_trainer import ActTrainer
+from decision_transformer.training.seq_trainer import SequenceTrainer
 
 # Random seed for reproducibility
 torch.manual_seed(42)
@@ -62,7 +62,7 @@ def experiment(
         env_targets = [5000, 2500]
         scale = 1000.
     elif env_name == 'reacher2d':
-        from tractRLformer.envs.reacher_2d import Reacher2dEnv
+        from decision_transformer.envs.reacher_2d import Reacher2dEnv
         env = Reacher2dEnv()
         max_ep_len = 100
         env_targets = [76, 40]
