@@ -5,7 +5,7 @@ from nibabel.streamlines import Tractogram
 from tqdm import tqdm
 from typing import Tuple
 import pickle
-from TrackToLearn.environments.env import BaseEnv
+from rl_environments.BaseEnvmod_TRLF import BaseEnv
 import nibabel as nib
 import numpy as np
 import torch
