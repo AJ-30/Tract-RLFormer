@@ -27,6 +27,15 @@ pip install git+https://github.com/scilus/ismrm_2015_tractography_challenge_scor
 pip install -e .
 ```
 
+#### Mask creation and refinement MRM:
+
+For creating refined mask for a tract:
+
+> Create a binary mask from the atlas-tract aligned in subject space.
+> Create binary mask from Ground-truth tracts (trainset: size >=72)
+> Train mrm via `mask_refinement_module/mrm_train.py` 
+> Generate 1mm dilated mask for inference via `refine_mask.py` and `dilate_mask.py`
+
 ### Training - T-RLF
 
 For training T-RLF model, tract dataset containing trajectories of RL model on trainset is required.
