@@ -1,0 +1,32 @@
+env_dto:
+  interface_seeding: False
+  fa_map: null
+  n_signal: 1
+  n_dirs: 4
+  step_size: 0.75
+  theta: 60
+  min_length: 0.0
+  max_length: 200.0
+  cmc: False
+  asymmetric: False
+  prob: 0.0
+  npv: 7
+  rng: 1111
+  scoring_data: null
+  reference: 'raw_subject_data/fa.nii.gz'
+  alignment_weighting: 1
+  straightness_weighting: 0
+  length_weighting: 0
+  target_bonus_factor: 0
+  exclude_penalty_factor: 0
+  angle_penalty_factor: 0
+  add_neighborhood: 0.75
+  compute_reward: True
+  device: 'cuda'
+
+signal: 'raw_subject_data/fodf.nii.gz'
+target_order: 8
+seeding_mask: 'data/tractoinferno/sub-1160/mrm_masks/sub-1160-generated_approximated_mask_1mm_AF_L.nii.gz'
+tracking_mask: 'data/tractoinferno/sub-1160/mrm_masks/sub-1160-generated_approximated_mask_1mm_AF_L.nii.gz'
+wm: 'data/tractoinferno/sub-1160/mrm_masks/sub-1160-generated_approximated_mask_1mm_AF_L.nii.gz'
+peaks: 'raw_subject_data/peaks.nii.gz'
